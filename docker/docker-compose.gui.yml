@@ -1,0 +1,13 @@
+# Bat server CO cua so (de nhin kich ban, quay bang chung nhu Task 1).
+# Truoc do tren may dich:  xhost +local:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gui.yml up -d carla-server
+services:
+  carla-server:
+    command: >
+      bash CarlaUE4.sh -nosound
+      -quality-level=${CARLA_QUALITY:-Low} -carla-rpc-port=2000
+    environment:
+      DISPLAY: ${DISPLAY:-:0}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw

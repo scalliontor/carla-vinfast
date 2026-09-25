@@ -1,0 +1,16 @@
+# Moi truong Windows
+.venv-sr/
+__pycache__/
+*.pyc
+*.bak
+*.bak_*
+CarlaUE4.uproject.bak_with_modelingtools
+
+# Scenario Runner la repo git rieng (v0.9.16); phan da sua nam o docker/scenario_runner.patch
+scenario_runner/
+
+# Du lieu dau ra - qua nang, di theo goi export_bundle.ps1
+out/
+evidence/
+docker/data/
+docker/.env

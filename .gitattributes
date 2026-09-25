@@ -1,0 +1,7 @@
+# Patch co ca dong CRLF lan LF - khong de git doi xuong dong
+*.patch -text
+# Script chay tren Linux
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.Dockerfile text eol=lf
+*.yml text eol=lf

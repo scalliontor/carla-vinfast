@@ -1,0 +1,20 @@
+# Build context cua docker/client.Dockerfile = goc repo nay
+
+# Venv Windows - image tu dung venv Linux
+.venv-sr
+
+# Scenario Runner: image tu clone v0.9.16 roi ap docker/scenario_runner.patch
+scenario_runner
+
+# Du lieu dau ra: mount volume, khong nuong vao image
+out
+evidence
+
+# Rac
+.git
+docker/data
+**/*.bak
+**/__pycache__
+**/*.pyc
+*.bat
+CarlaUE4.uproject.bak_with_modelingtools

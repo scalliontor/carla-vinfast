@@ -1,0 +1,62 @@
+# ============================================================================
+#  CARLA 0.9.16 + Scenario Runner - chay tren may Linux co GPU NVIDIA
+#
+#  Can: Docker Engine + Docker Compose v2 + NVIDIA Container Toolkit
+#
+#    docker compose up -d carla-server         # bat server (offscreen)
+#    docker compose run --rm client            # vao shell client
+#
+#  Nhieu nguoi tren cung may: moi nguoi mot COMPOSE_PROJECT_NAME va mot dai
+#  cong rieng trong file .env (xem .env.example).
+# ============================================================================
+name: ${COMPOSE_PROJECT_NAME:-carla-vinfast}
+
+services:
+  carla-server:
+    image: carlasim/carla:0.9.16
+    # Ban server chinh thuc da cook san content + shader -> khong con 370 s
+    # nap Town04 nhu ban build tu source tren Windows.
+    command: >
+      bash CarlaUE4.sh -RenderOffScreen -nosound
+      -quality-level=${CARLA_QUALITY:-Low} -carla-rpc-port=2000
+    ports:
+      # Trong container server LUON nghe 2000-2002; chi doi cong phia host.
+      # Nho vay moi script (deu goi 127.0.0.1:2000) chay nguyen, khong sua.
+      - "${CARLA_HOST_PORT:-2000}-${CARLA_HOST_PORT_END:-2002}:2000-2002"
+    volumes:
+      # File recorder do SERVER ghi va doc, nen server va client phai thay
+      # cung mot thu muc o CUNG duong dan.
+      - ./data/recorder:/workspace/scenario_runner/recorder
+    environment:
+      NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-all}
+      NVIDIA_DRIVER_CAPABILITIES: all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/127.0.0.1/2000'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+
+  client:
+    # Image build tren may nguon (docker-compose.build.yml), may dich chi load.
+    image: carla-vinfast-client:0.9.16
+    # Dung chung network namespace voi server: 127.0.0.1:2000 trong client
+    # chinh la server, va cong Traffic Manager 8000 khong dung ai ngoai.
+    network_mode: "service:carla-server"
+    depends_on:
+      carla-server:
+        condition: service_healthy
+    volumes:
+      - ./data/out:/workspace/out
+      - ./data/evidence:/workspace/evidence
+      - ./data/recorder:/workspace/scenario_runner/recorder
+    stdin_open: true
+    tty: true

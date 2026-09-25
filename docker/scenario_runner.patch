@@ -1,0 +1,1925 @@
+diff --git a/metrics_manager.py b/metrics_manager.py
+index 77f1d32..ad4a899 100644
+--- a/metrics_manager.py
++++ b/metrics_manager.py
+@@ -1,165 +1,170 @@
+-#!/usr/bin/env python
+-
+-# Copyright (c) 2020 Computer Vision Center (CVC) at the Universitat Autonoma de
+-# Barcelona (UAB).
+-#
+-# This work is licensed under the terms of the MIT license.
+-# For a copy, see <https://opensource.org/licenses/MIT>.
+-
+-# Allows the execution of user-implemented metrics
+-
+-"""
+-Welcome to the ScenarioRunner's metric module
+-
+-This is the main script to be executed when running a metric.
+-It is responsible of parsing all the information and executing
+-the metric specified by the user.
+-"""
+-
+-import os
+-import sys
+-import importlib
+-import inspect
+-import json
+-import argparse
+-from argparse import RawTextHelpFormatter
+-
+-import carla
+-from srunner.metrics.tools.metrics_log import MetricsLog
+-
+-
+-class MetricsManager(object):
+-    """
+-    Main class of the metrics module. Handles the parsing and execution of
+-    the metrics.
+-    """
+-
+-    def __init__(self, args):
+-        """
+-        Initialization of the metrics manager. This creates the client, needed to parse
+-        the information from the recorder, extract the metrics class, and runs it
+-        """
+-        self._args = args
+-
+-        # Parse the arguments
+-        recorder_str = self._get_recorder(self._args.log)
+-        criteria_dict = self._get_criteria(self._args.criteria)
+-
+-        # Get the correct world and load it
+-        map_name = self._get_recorder_map(recorder_str)
+-        world = self._client.load_world(map_name)
+-        town_map = world.get_map()
+-
+-        # Instanciate the MetricsLog, used to querry the needed information
+-        log = MetricsLog(recorder_str)
+-
+-        # Read and run the metric class
+-        metric_class = self._get_metric_class(self._args.metric)
+-        metric_class(town_map, log, criteria_dict)
+-
+-    def _get_recorder(self, log):
+-        """
+-        Parses the log argument into readable information
+-        """
+-
+-        # Get the log information.
+-        self._client = carla.Client(self._args.host, int(self._args.port))
+-        recorder_file = "{}/{}".format(os.getenv('SCENARIO_RUNNER_ROOT', "./"), log)
+-
+-        # Check that the file is correct
+-        if recorder_file[-4:] != '.log':
+-            print("ERROR: The log argument has to point to a .log file")
+-            sys.exit(-1)
+-        if not os.path.exists(recorder_file):
+-            print("ERROR: The specified log file does not exist")
+-            sys.exit(-1)
+-
+-        recorder_str = self._client.show_recorder_file_info(recorder_file, True)
+-
+-        return recorder_str
+-
+-    def _get_criteria(self, criteria_file):
+-        """
+-        Parses the criteria argument into a dictionary
+-        """
+-        if criteria_file:
+-            with open(criteria_file) as fd:
+-                criteria_dict = json.load(fd)
+-        else:
+-            criteria_dict = None
+-
+-        return criteria_dict
+-
+-    def _get_metric_class(self, metric_file):
+-        """
+-        Function to extract the metrics class from the path given by the metrics
+-        argument. Returns the first class found that is a child of BasicMetric
+-
+-        Args:
+-            metric_file (str): path to the metric's file.
+-        """
+-        # Get their module
+-        module_name = os.path.basename(metric_file).split('.')[0]
+-        sys.path.insert(0, os.path.dirname(metric_file))
+-        metric_module = importlib.import_module(module_name)
+-
+-        # And their members of type class
+-        for member in inspect.getmembers(metric_module, inspect.isclass):
+-            # Get the first one with parent BasicMetrics
+-            member_parent = member[1].__bases__[0]
+-            if 'BasicMetric' in str(member_parent):
+-                return member[1]
+-
+-        print("No child class of BasicMetric was found ... Exiting")
+-        sys.exit(-1)
+-
+-    def _get_recorder_map(self, recorder_str):
+-        """
+-        Returns the name of the map the simulation took place in
+-        """
+-
+-        header = recorder_str.split("\n")
+-        sim_map = header[1][5:]
+-
+-        return sim_map
+-
+-
+-def main():
+-    """
+-    main function
+-    """
+-
+-    # pylint: disable=line-too-long
+-    description = "Scenario Runner's metrics module. Evaluate the execution of a specific scenario by developing your own metric.\n"
+-    # pylint: enable=line-too-long
+-
+-    parser = argparse.ArgumentParser(description=description,
+-                                    formatter_class=RawTextHelpFormatter)
+-    parser.add_argument('--host', default='127.0.0.1',
+-                        help='IP of the host server (default: localhost)')
+-    parser.add_argument('--port', '-p', default=2000,
+-                        help='TCP port to listen to (default: 2000)')
+-    parser.add_argument(
+-        "--log",
+-        required=True,
+-        help="Path to the CARLA recorder .log file (relative to SCENARIO_RUNNER_ROOT)."
+-             "\nThis file is created by the record functionality at ScenarioRunner",
+-    )
+-    parser.add_argument(
+-        "--metric",
+-        required=True,
+-        help="Path to the .py file defining the used metric.\nSome examples at srunner/metrics",
+-    )
+-    parser.add_argument(
+-        "--criteria",
+-        default="",
+-        help="Path to the .json file with the criteria information."
+-             "\nThis file is created by the record functionality at ScenarioRunner",
+-    )
+-
+-    args = parser.parse_args()
+-
+-    MetricsManager(args)
+-
+-if __name__ == "__main__":
+-    sys.exit(main())
++#!/usr/bin/env python
++
++# Copyright (c) 2020 Computer Vision Center (CVC) at the Universitat Autonoma de
++# Barcelona (UAB).
++#
++# This work is licensed under the terms of the MIT license.
++# For a copy, see <https://opensource.org/licenses/MIT>.
++
++# Allows the execution of user-implemented metrics
++
++"""
++Welcome to the ScenarioRunner's metric module
++
++This is the main script to be executed when running a metric.
++It is responsible of parsing all the information and executing
++the metric specified by the user.
++"""
++
++import os
++import sys
++import importlib
++import inspect
++import json
++import argparse
++from argparse import RawTextHelpFormatter
++
++import carla
++from srunner.metrics.tools.metrics_log import MetricsLog
++
++
++class MetricsManager(object):
++    """
++    Main class of the metrics module. Handles the parsing and execution of
++    the metrics.
++    """
++
++    def __init__(self, args):
++        """
++        Initialization of the metrics manager. This creates the client, needed to parse
++        the information from the recorder, extract the metrics class, and runs it
++        """
++        self._args = args
++
++        # Parse the arguments
++        recorder_str = self._get_recorder(self._args.log)
++        criteria_dict = self._get_criteria(self._args.criteria)
++
++        # Get the correct world and load it
++        map_name = self._get_recorder_map(recorder_str)
++        world = self._client.load_world(map_name)
++        town_map = world.get_map()
++
++        # Instanciate the MetricsLog, used to querry the needed information
++        log = MetricsLog(recorder_str)
++
++        # Read and run the metric class
++        metric_class = self._get_metric_class(self._args.metric)
++        metric_class(town_map, log, criteria_dict)
++
++    def _get_recorder(self, log):
++        """
++        Parses the log argument into readable information
++        """
++
++        # Get the log information.
++        self._client = carla.Client(self._args.host, int(self._args.port))
++        # VA LOI: metrics_manager khong he goi set_timeout nen dung mac dinh 5s cua
++        # CARLA. Ban build tu SOURCE nap map cham hon nhieu (Town04 mat toi 370s lan
++        # dau vi phai bien dich shader) -> load_world() o dong 49 luon timeout.
++        # Cong cu khong co co --timeout nao de chinh tu ngoai.
++        self._client.set_timeout(120.0)
++        recorder_file = "{}/{}".format(os.getenv('SCENARIO_RUNNER_ROOT', "./"), log)
++
++        # Check that the file is correct
++        if recorder_file[-4:] != '.log':
++            print("ERROR: The log argument has to point to a .log file")
++            sys.exit(-1)
++        if not os.path.exists(recorder_file):
++            print("ERROR: The specified log file does not exist")
++            sys.exit(-1)
++
++        recorder_str = self._client.show_recorder_file_info(recorder_file, True)
++
++        return recorder_str
++
++    def _get_criteria(self, criteria_file):
++        """
++        Parses the criteria argument into a dictionary
++        """
++        if criteria_file:
++            with open(criteria_file) as fd:
++                criteria_dict = json.load(fd)
++        else:
++            criteria_dict = None
++
++        return criteria_dict
++
++    def _get_metric_class(self, metric_file):
++        """
++        Function to extract the metrics class from the path given by the metrics
++        argument. Returns the first class found that is a child of BasicMetric
++
++        Args:
++            metric_file (str): path to the metric's file.
++        """
++        # Get their module
++        module_name = os.path.basename(metric_file).split('.')[0]
++        sys.path.insert(0, os.path.dirname(metric_file))
++        metric_module = importlib.import_module(module_name)
++
++        # And their members of type class
++        for member in inspect.getmembers(metric_module, inspect.isclass):
++            # Get the first one with parent BasicMetrics
++            member_parent = member[1].__bases__[0]
++            if 'BasicMetric' in str(member_parent):
++                return member[1]
++
++        print("No child class of BasicMetric was found ... Exiting")
++        sys.exit(-1)
++
++    def _get_recorder_map(self, recorder_str):
++        """
++        Returns the name of the map the simulation took place in
++        """
++
++        header = recorder_str.split("\n")
++        sim_map = header[1][5:]
++
++        return sim_map
++
++
++def main():
++    """
++    main function
++    """
++
++    # pylint: disable=line-too-long
++    description = "Scenario Runner's metrics module. Evaluate the execution of a specific scenario by developing your own metric.\n"
++    # pylint: enable=line-too-long
++
++    parser = argparse.ArgumentParser(description=description,
++                                    formatter_class=RawTextHelpFormatter)
++    parser.add_argument('--host', default='127.0.0.1',
++                        help='IP of the host server (default: localhost)')
++    parser.add_argument('--port', '-p', default=2000,
++                        help='TCP port to listen to (default: 2000)')
++    parser.add_argument(
++        "--log",
++        required=True,
++        help="Path to the CARLA recorder .log file (relative to SCENARIO_RUNNER_ROOT)."
++             "\nThis file is created by the record functionality at ScenarioRunner",
++    )
++    parser.add_argument(
++        "--metric",
++        required=True,
++        help="Path to the .py file defining the used metric.\nSome examples at srunner/metrics",
++    )
++    parser.add_argument(
++        "--criteria",
++        default="",
++        help="Path to the .json file with the criteria information."
++             "\nThis file is created by the record functionality at ScenarioRunner",
++    )
++
++    args = parser.parse_args()
++
++    MetricsManager(args)
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/srunner/metrics/tools/metrics_parser.py b/srunner/metrics/tools/metrics_parser.py
+index d270143..abd0398 100644
+--- a/srunner/metrics/tools/metrics_parser.py
++++ b/srunner/metrics/tools/metrics_parser.py
+@@ -1,540 +1,565 @@
+-#!/usr/bin/env python
+-
+-# Copyright (c) 2020 Computer Vision Center (CVC) at the Universitat Autonoma de
+-# Barcelona (UAB).
+-#
+-# This work is licensed under the terms of the MIT license.
+-# For a copy, see <https://opensource.org/licenses/MIT>.
+-
+-"""
+-Support class of the MetricsManager to parse the information of
+-the CARLA recorder into a readable dictionary
+-"""
+-
+-import carla
+-
+-
+-def parse_actor(info):
+-    """Returns a dictionary with the basic actor information"""
+-    actor = {
+-        "type_id": info[2],
+-        "location": carla.Location(
+-            x=float(info[5][1:-1]) / 100,
+-            y=float(info[6][:-1]) / 100,
+-            z=float(info[7][:-1]) / 100
+-        )
+-    }
+-    return actor
+-
+-def parse_transform(info):
+-    """Parses a list into a carla.Transform"""
+-    transform = carla.Transform(
+-        carla.Location(
+-            x=float(info[3][1:-1]) / 100,
+-            y=float(info[4][:-1]) / 100,
+-            z=float(info[5][:-1]) / 100,
+-        ),
+-        carla.Rotation(
+-            roll=float(info[7][1:-1]),
+-            pitch=float(info[8][:-1]), 
+-            yaw=float(info[9][:-1])
+-        )
+-    )
+-    return transform
+-
+-def parse_control(info):
+-    """Parses a list into a carla.VehicleControl"""
+-    control = carla.VehicleControl(
+-        throttle=float(info[5]),
+-        steer=float(info[3]),
+-        brake=float(info[7]),
+-        hand_brake=bool(int(info[9])),
+-        reverse=int(info[11]) < 0,
+-        manual_gear_shift=False,
+-        gear=int(info[11]),
+-    )
+-    return control
+-
+-def parse_vehicle_lights(info):
+-    """Parses a list into a carla.VehicleLightState"""
+-    srt_to_vlight = {
+-        "None": carla.VehicleLightState.NONE,
+-        "Position": carla.VehicleLightState.Position,
+-        "LowBeam": carla.VehicleLightState.LowBeam,
+-        "HighBeam": carla.VehicleLightState.HighBeam,
+-        "Brake": carla.VehicleLightState.Brake,
+-        "RightBlinker": carla.VehicleLightState.RightBlinker,
+-        "LeftBlinker": carla.VehicleLightState.LeftBlinker,
+-        "Reverse": carla.VehicleLightState.Reverse,
+-        "Fog": carla.VehicleLightState.Fog,
+-        "Interior": carla.VehicleLightState.Interior,
+-        "Special1": carla.VehicleLightState.Special1,
+-        "Special2": carla.VehicleLightState.Special2,
+-    }
+-
+-    lights = []
+-    for i in range(2, len(info)):
+-        lights.append(srt_to_vlight[info[i]])
+-
+-    return lights
+-
+-def parse_traffic_light(info):
+-    """Parses a list into a dictionary with all the traffic light's information"""
+-    number_to_state = {
+-        "0": carla.TrafficLightState.Red,
+-        "1": carla.TrafficLightState.Yellow,
+-        "2": carla.TrafficLightState.Green,
+-        "3": carla.TrafficLightState.Off,
+-        "4": carla.TrafficLightState.Unknown,
+-    }
+-    traffic_light = {
+-        "state": number_to_state[info[3]],
+-        "frozen": bool(int(info[5])),
+-        "elapsed_time": float(info[7]),
+-    }
+-    return traffic_light
+-
+-def parse_velocity(info):
+-    """Parses a list into a carla.Vector3D with the velocity"""
+-    velocity = carla.Vector3D(
+-        x=float(info[3][1:-1]),
+-        y=float(info[4][:-1]),
+-        z=float(info[5][:-1])
+-    )
+-    return velocity
+-
+-def parse_angular_velocity(info):
+-    """Parses a list into a carla.Vector3D with the angular velocity"""
+-    velocity = carla.Vector3D(
+-        x=float(info[7][1:-1]),
+-        y=float(info[8][:-1]),
+-        z=float(info[9][:-1])
+-    )
+-    return velocity
+-
+-def parse_scene_lights(info):
+-    """Parses a list into a carla.VehicleLightState"""
+-
+-    red = int(float(info[7][1:-1]) * 255)
+-    green = int(float(info[8][:-1]) * 255)
+-    blue = int(float(info[9][:-1]) * 255)
+-
+-    scene_light = carla.LightState(
+-        intensity=int(float(info[5])),
+-        color=carla.Color(red, green, blue),
+-        group=carla.LightGroup.NONE,
+-        active=bool(info[3])
+-    )
+-    return scene_light
+-
+-def parse_bounding_box(info):
+-    """
+-    Parses a list into a carla.BoundingBox.
+-    Some actors like sensors might have 'nan' location and 'inf' extent, so filter those.
+-    """
+-    if 'nan' in info[3]:
+-        location = carla.Location()
+-    else:
+-        location = carla.Location(
+-            float(info[3][1:-1])/100,
+-            float(info[4][:-1])/100,
+-            float(info[5][:-1])/100,
+-        )
+-
+-    if 'inf' in info[7]:
+-        extent = carla.Vector3D()
+-    else:
+-        extent = carla.Vector3D(
+-            float(info[7][1:-1])/100,
+-            float(info[8][:-1])/100,
+-            float(info[9][:-1])/100,
+-        )
+-
+-    bbox = carla.BoundingBox(location, extent)
+-
+-    return bbox
+-
+-def parse_state_times(info):
+-    """Parses a list into a dict containing the state times of the traffic lights"""
+-    state_times = {
+-        carla.TrafficLightState.Green: float(info[3]),
+-        carla.TrafficLightState.Yellow: float(info[5]),
+-        carla.TrafficLightState.Red: float(info[7]),
+-    }
+-    return state_times
+-
+-def parse_vector_list(info):
+-    """Parses a list of string into a list of Vector2D"""
+-    vector_list = []
+-    for i in range(0, len(info), 2):
+-        vector = carla.Vector2D(
+-            x=float(info[i][1:-1]),
+-            y=float(info[i+1][:-1]),
+-        )
+-        vector_list.append(vector)
+-
+-    return vector_list
+-
+-def parse_gears_control(info):
+-    """Parses a list into a GearPhysicsControl"""
+-    gears_control = carla.GearPhysicsControl(
+-        ratio=float(info[3]),
+-        down_ratio=float(info[5]),
+-        up_ratio=float(info[7]),
+-    )
+-    return gears_control
+-
+-def parse_wheels_control(info):
+-    """Parses a list into a WheelsPhysicsControl"""
+-    wheels_control = carla.WheelPhysicsControl(
+-        tire_friction=float(info[3]),
+-        damping_rate=float(info[5]),
+-        max_steer_angle=float(info[7]),
+-        radius=float(info[9]),
+-        max_brake_torque=float(info[11]),
+-        max_handbrake_torque=float(info[13]),
+-        position=carla.Vector3D(
+-            x=float(info[15][1:-1]) / 100,
+-            y=float(info[16][:-1]) / 100,
+-            z=float(info[17][:-1]) / 100)
+-    )
+-    return wheels_control
+-
+-
+-class MetricsParser(object):
+-    """
+-    Class used to parse the CARLA recorder into readable information
+-    """
+-
+-    def __init__(self, recorder_info):
+-
+-        self.recorder_info = recorder_info
+-        self.frame_list = None
+-        self.frame_row = None
+-        self.i = 0
+-
+-    def get_row_elements(self, indent_num, split_string):
+-        """
+-        returns a list with the elements of the row
+-        """
+-        return self.frame_row[indent_num:].split(split_string)
+-
+-    def next_row(self):
+-        """
+-        Gets the next row of the recorder
+-        """
+-        self.i += 1
+-        self.frame_row = self.frame_list[self.i]
+-
+-    def parse_recorder_info(self):
+-        """
+-        Parses the recorder into readable information.
+-
+-        Args:
+-            recorder_info (str): string given by the recorder
+-        """
+-
+-        # Divide it into frames
+-        recorder_list = self.recorder_info.split("Frame")
+-
+-        # Get general information
+-        header = recorder_list[0].split("\n")
+-        sim_map = header[1][5:]
+-        sim_date = header[2][6:]
+-
+-        annex = recorder_list[-1].split("\n")
+-        sim_frames = int(annex[0][3:])
+-        sim_duration = float(annex[1][10:-8])
+-
+-        recorder_list = recorder_list[1:-1]
+-
+-        simulation_info = {
+-            "map": sim_map,
+-            "date:": sim_date,
+-            "total_frames": sim_frames,
+-            "duration": sim_duration
+-        }
+-
+-        actors_info = {}
+-        frames_info = []
+-
+-        for frame in recorder_list:
+-
+-            # Divide the frame in lines
+-            self.frame_list = frame.split("\n")
+-
+-            # Get the general frame information
+-            frame_info = self.frame_list[0].split(" ")
+-            frame_number = int(frame_info[1])
+-            frame_time = float(frame_info[3])
+-
+-            try:
+-                prev_frame = frames_info[frame_number - 2]
+-                prev_time = prev_frame["frame"]["elapsed_time"]
+-                delta_time = round(frame_time - prev_time, 6)
+-            except IndexError:
+-                delta_time = 0
+-
+-            # Variable to store all the information about the frame
+-            frame_state = {
+-                "frame": {
+-                    "elapsed_time": frame_time,
+-                    "delta_time": delta_time,
+-                    "platform_time": None
+-                },
+-                "actors": {},
+-                "events":{
+-                    "scene_lights": {},
+-                    "physics_control": {},
+-                    "traffic_light_state_time": {},
+-                    "collisions": {}
+-                }
+-            }
+-
+-            # Loop through all the other rows.
+-            self.i = 0
+-            self.next_row()
+-
+-            while self.frame_row.startswith(' Create') or self.frame_row.startswith('  '):
+-
+-                if self.frame_row.startswith(' Create'):
+-                    elements = self.get_row_elements(1, " ")
+-                    actor_id = int(elements[1][:-1])
+-
+-                    actor = parse_actor(elements)
+-                    actors_info.update({actor_id: actor})
+-                    actors_info[actor_id].update({"created": frame_number})
+-                else:
+-                    elements = self.get_row_elements(2, " = ")
+-                    actors_info[actor_id].update({elements[0]: elements[1]})
+-
+-                self.next_row()
+-
+-            while self.frame_row.startswith(' Destroy'):
+-
+-                elements = self.get_row_elements(1, " ")
+-
+-                actor_id = int(elements[1])
+-                actors_info[actor_id].update({"destroyed": frame_number})
+-
+-                self.next_row()
+-
+-            while self.frame_row.startswith(' Collision'):
+-
+-                elements = self.get_row_elements(1, " ")
+-
+-                actor_id = int(elements[4])
+-                other_id = int(elements[-1])
+-
+-                if actor_id not in frame_state["events"]["collisions"]:
+-                    frame_state["events"]["collisions"][actor_id] = [other_id]
+-                else:
+-                    collisions = frame_state["events"]["collisions"][actor_id]
+-                    collisions.append(other_id)
+-                    frame_state["events"]["collisions"].update({actor_id: collisions})
+-
+-                self.next_row()
+-
+-            while self.frame_row.startswith(' Parenting'):
+-
+-                elements = self.get_row_elements(1, " ")
+-
+-                actor_id = int(elements[1])
+-                parent_id = int(elements[3])
+-                actors_info[actor_id].update({"parent": parent_id})
+-
+-                self.next_row()
+-
+-            if self.frame_row.startswith(' Positions'):
+-                self.next_row()
+-
+-                while self.frame_row.startswith('  '):
+-
+-                    elements = self.get_row_elements(2, " ")
+-                    actor_id = int(elements[1])
+-
+-                    transform = parse_transform(elements)
+-                    frame_state["actors"].update({actor_id: {"transform": transform}})
+-
+-                    self.next_row()
+-
+-            if self.frame_row.startswith(' State traffic lights'):
+-                self.next_row()
+-
+-                while self.frame_row.startswith('  '):
+-
+-                    elements = self.get_row_elements(2, " ")
+-                    actor_id = int(elements[1])
+-
+-                    traffic_light = parse_traffic_light(elements)
+-                    frame_state["actors"].update({actor_id: traffic_light})
+-                    self.next_row()
+-
+-            if self.frame_row.startswith(' Vehicle animations'):
+-                self.next_row()
+-
+-                while self.frame_row.startswith('  '):
+-
+-                    elements = self.get_row_elements(2, " ")
+-                    actor_id = int(elements[1])
+-
+-                    control = parse_control(elements)
+-                    frame_state["actors"][actor_id].update({"control": control})
+-                    self.next_row()
+-
+-            if self.frame_row.startswith(' Walker animations'):
+-                self.next_row()
+-
+-                while self.frame_row.startswith('  '):
+-                    elements = self.get_row_elements(2, " ")
+-                    actor_id = int(elements[1])
+-
+-                    frame_state["actors"][actor_id].update({"speed": elements[3]})
+-                    self.next_row()
+-
+-            if self.frame_row.startswith(' Vehicle light animations'):
+-                self.next_row()
+-
+-                while self.frame_row.startswith('  '):
+-                    elements = self.get_row_elements(2, " ")
+-                    actor_id = int(elements[1])
+-
+-                    lights = parse_vehicle_lights(elements)
+-                    frame_state["actors"][actor_id].update({"lights": lights})
+-                    self.next_row()
+-
+-            if self.frame_row.startswith(' Scene light changes'):
+-                self.next_row()
+-
+-                while self.frame_row.startswith('  '):
+-                    elements = self.get_row_elements(2, " ")
+-                    actor_id = int(elements[1])
+-
+-                    scene_light = parse_scene_lights(elements)
+-                    frame_state["events"]["scene_lights"].update({actor_id: scene_light})
+-                    self.next_row()
+-
+-            if self.frame_row.startswith(' Dynamic actors'):
+-                self.next_row()
+-
+-                while self.frame_row.startswith('  '):
+-                    elements = self.get_row_elements(2, " ")
+-                    actor_id = int(elements[1])
+-
+-                    velocity = parse_velocity(elements)
+-                    frame_state["actors"][actor_id].update({"velocity": velocity})
+-
+-                    angular_v = parse_angular_velocity(elements)
+-                    frame_state["actors"][actor_id].update({"angular_velocity": angular_v})
+-
+-                    if delta_time == 0:
+-                        acceleration = carla.Vector3D(0, 0, 0)
+-                    else:
+-                        prev_velocity = frame_state["actors"][actor_id]["velocity"]
+-                        acceleration = (velocity - prev_velocity) / delta_time
+-
+-                    frame_state["actors"][actor_id].update({"acceleration": acceleration})
+-                    self.next_row()
+-
+-            if self.frame_row.startswith(' Actor bounding boxes'):
+-                self.next_row()
+-
+-                while self.frame_row.startswith('  '):
+-                    elements = self.get_row_elements(2, " ")
+-                    actor_id = int(elements[1])
+-
+-                    bbox = parse_bounding_box(elements)
+-                    actors_info[actor_id].update({"bounding_box": bbox})
+-                    self.next_row()
+-
+-            if self.frame_row.startswith(' Actor trigger volumes'):
+-                self.next_row()
+-
+-                while self.frame_row.startswith('  '):
+-                    elements = self.get_row_elements(2, " ")
+-                    actor_id = int(elements[1])
+-
+-                    trigvol = parse_bounding_box(elements)
+-                    actors_info[actor_id].update({"trigger_volume": trigvol})
+-                    self.next_row()
+-
+-            if self.frame_row.startswith(' Current platform time'):
+-
+-                elements = self.get_row_elements(1, " ")
+-
+-                platform_time = float(elements[-1])
+-                frame_state["frame"]["platform_time"] = platform_time
+-                self.next_row()
+-
+-            if self.frame_row.startswith(' Physics Control'):
+-                self.next_row()
+-
+-                actor_id = None
+-                while self.frame_row.startswith('  '):
+-
+-                    elements = self.get_row_elements(2, " ")
+-                    actor_id = int(elements[1])
+-                    physics_control = carla.VehiclePhysicsControl()
+-                    self.next_row()
+-
+-                    forward_gears = []
+-                    wheels = []
+-                    while self.frame_row.startswith('   '):
+-
+-                        if self.frame_row.startswith('    '):
+-                            elements = self.get_row_elements(4, " ")
+-                            if elements[0] == "gear":
+-                                forward_gears.append(parse_gears_control(elements))
+-                            elif elements[0] == "wheel":
+-                                wheels.append(parse_wheels_control(elements))
+-
+-                        else:
+-                            elements = self.get_row_elements(3, " = ")
+-                            name = elements[0]
+-
+-                            if name == "center_of_mass":
+-                                values = elements[1].split(" ")
+-                                value = carla.Vector3D(
+-                                    float(values[0][1:-1]),
+-                                    float(values[1][:-1]),
+-                                    float(values[2][:-1]),
+-                                )
+-                                setattr(physics_control, name, value)
+-                            elif name == "torque_curve" or name == "steering_curve":
+-                                values = elements[1].split(" ")
+-                                value = parse_vector_list(values)
+-                                setattr(physics_control, name, value)
+-
+-                            elif name == "use_gear_auto_box":
+-                                name = "use_gear_autobox"
+-                                value = elements[1] == "true"
+-                                setattr(physics_control, name, value)
+-
+-                            elif "forward_gears" in name or "wheels" in name:
+-                                pass
+-
+-                            else:
+-                                name = name.lower()
+-                                value = float(elements[1])
+-                                setattr(physics_control, name, value)
+-
+-                        self.next_row()
+-
+-                    setattr(physics_control, "forward_gears", forward_gears)
+-                    setattr(physics_control, "wheels", wheels)
+-                    frame_state["events"]["physics_control"].update({actor_id: physics_control})
+-
+-            if self.frame_row.startswith(' Traffic Light time events'):
+-                self.next_row()
+-
+-                while self.frame_row.startswith('  '):
+-                    elements = self.get_row_elements(2, " ")
+-                    actor_id = int(elements[1])
+-
+-                    state_times = parse_state_times(elements)
+-                    frame_state["events"]["traffic_light_state_time"].update({actor_id: state_times})
+-                    self.next_row()
+-
+-            frames_info.append(frame_state)
+-
+-        return simulation_info, actors_info, frames_info
++#!/usr/bin/env python
++
++# Copyright (c) 2020 Computer Vision Center (CVC) at the Universitat Autonoma de
++# Barcelona (UAB).
++#
++# This work is licensed under the terms of the MIT license.
++# For a copy, see <https://opensource.org/licenses/MIT>.
++
++"""
++Support class of the MetricsManager to parse the information of
++the CARLA recorder into a readable dictionary
++"""
++
++import carla
++
++
++def parse_actor(info):
++    """Returns a dictionary with the basic actor information"""
++    actor = {
++        "type_id": info[2],
++        "location": carla.Location(
++            x=float(info[5][1:-1]) / 100,
++            y=float(info[6][:-1]) / 100,
++            z=float(info[7][:-1]) / 100
++        )
++    }
++    return actor
++
++def parse_transform(info):
++    """Parses a list into a carla.Transform"""
++    transform = carla.Transform(
++        carla.Location(
++            x=float(info[3][1:-1]) / 100,
++            y=float(info[4][:-1]) / 100,
++            z=float(info[5][:-1]) / 100,
++        ),
++        carla.Rotation(
++            roll=float(info[7][1:-1]),
++            pitch=float(info[8][:-1]), 
++            yaw=float(info[9][:-1])
++        )
++    )
++    return transform
++
++def parse_control(info):
++    """Parses a list into a carla.VehicleControl"""
++    control = carla.VehicleControl(
++        throttle=float(info[5]),
++        steer=float(info[3]),
++        brake=float(info[7]),
++        hand_brake=bool(int(info[9])),
++        reverse=int(info[11]) < 0,
++        manual_gear_shift=False,
++        gear=int(info[11]),
++    )
++    return control
++
++def parse_vehicle_lights(info):
++    """Parses a list into a carla.VehicleLightState"""
++    srt_to_vlight = {
++        "None": carla.VehicleLightState.NONE,
++        "Position": carla.VehicleLightState.Position,
++        "LowBeam": carla.VehicleLightState.LowBeam,
++        "HighBeam": carla.VehicleLightState.HighBeam,
++        "Brake": carla.VehicleLightState.Brake,
++        "RightBlinker": carla.VehicleLightState.RightBlinker,
++        "LeftBlinker": carla.VehicleLightState.LeftBlinker,
++        "Reverse": carla.VehicleLightState.Reverse,
++        "Fog": carla.VehicleLightState.Fog,
++        "Interior": carla.VehicleLightState.Interior,
++        "Special1": carla.VehicleLightState.Special1,
++        "Special2": carla.VehicleLightState.Special2,
++    }
++
++    lights = []
++    for i in range(2, len(info)):
++        lights.append(srt_to_vlight[info[i]])
++
++    return lights
++
++def parse_traffic_light(info):
++    """Parses a list into a dictionary with all the traffic light's information"""
++    number_to_state = {
++        "0": carla.TrafficLightState.Red,
++        "1": carla.TrafficLightState.Yellow,
++        "2": carla.TrafficLightState.Green,
++        "3": carla.TrafficLightState.Off,
++        "4": carla.TrafficLightState.Unknown,
++    }
++    traffic_light = {
++        "state": number_to_state[info[3]],
++        "frozen": bool(int(info[5])),
++        "elapsed_time": float(info[7]),
++    }
++    return traffic_light
++
++def parse_velocity(info):
++    """Parses a list into a carla.Vector3D with the velocity"""
++    velocity = carla.Vector3D(
++        x=float(info[3][1:-1]),
++        y=float(info[4][:-1]),
++        z=float(info[5][:-1])
++    )
++    return velocity
++
++def parse_angular_velocity(info):
++    """Parses a list into a carla.Vector3D with the angular velocity"""
++    velocity = carla.Vector3D(
++        x=float(info[7][1:-1]),
++        y=float(info[8][:-1]),
++        z=float(info[9][:-1])
++    )
++    return velocity
++
++def parse_scene_lights(info):
++    """Parses a list into a carla.VehicleLightState"""
++
++    red = int(float(info[7][1:-1]) * 255)
++    green = int(float(info[8][:-1]) * 255)
++    blue = int(float(info[9][:-1]) * 255)
++
++    scene_light = carla.LightState(
++        intensity=int(float(info[5])),
++        color=carla.Color(red, green, blue),
++        group=carla.LightGroup.NONE,
++        active=bool(info[3])
++    )
++    return scene_light
++
++def parse_bounding_box(info):
++    """
++    Parses a list into a carla.BoundingBox.
++    Some actors like sensors might have 'nan' location and 'inf' extent, so filter those.
++    """
++    if 'nan' in info[3]:
++        location = carla.Location()
++    else:
++        location = carla.Location(
++            float(info[3][1:-1])/100,
++            float(info[4][:-1])/100,
++            float(info[5][:-1])/100,
++        )
++
++    if 'inf' in info[7]:
++        extent = carla.Vector3D()
++    else:
++        extent = carla.Vector3D(
++            float(info[7][1:-1])/100,
++            float(info[8][:-1])/100,
++            float(info[9][:-1])/100,
++        )
++
++    bbox = carla.BoundingBox(location, extent)
++
++    return bbox
++
++def parse_state_times(info):
++    """Parses a list into a dict containing the state times of the traffic lights"""
++    state_times = {
++        carla.TrafficLightState.Green: float(info[3]),
++        carla.TrafficLightState.Yellow: float(info[5]),
++        carla.TrafficLightState.Red: float(info[7]),
++    }
++    return state_times
++
++def parse_vector_list(info):
++    """Parses a list of string into a list of Vector2D"""
++    vector_list = []
++    for i in range(0, len(info), 2):
++        vector = carla.Vector2D(
++            x=float(info[i][1:-1]),
++            y=float(info[i+1][:-1]),
++        )
++        vector_list.append(vector)
++
++    return vector_list
++
++def parse_gears_control(info):
++    """Parses a list into a GearPhysicsControl"""
++    gears_control = carla.GearPhysicsControl(
++        ratio=float(info[3]),
++        down_ratio=float(info[5]),
++        up_ratio=float(info[7]),
++    )
++    return gears_control
++
++def parse_wheels_control(info):
++    """Parses a list into a WheelsPhysicsControl"""
++    wheels_control = carla.WheelPhysicsControl(
++        tire_friction=float(info[3]),
++        damping_rate=float(info[5]),
++        max_steer_angle=float(info[7]),
++        radius=float(info[9]),
++        max_brake_torque=float(info[11]),
++        max_handbrake_torque=float(info[13]),
++        position=carla.Vector3D(
++            x=float(info[15][1:-1]) / 100,
++            y=float(info[16][:-1]) / 100,
++            z=float(info[17][:-1]) / 100)
++    )
++    return wheels_control
++
++
++class MetricsParser(object):
++    """
++    Class used to parse the CARLA recorder into readable information
++    """
++
++    def __init__(self, recorder_info):
++
++        self.recorder_info = recorder_info
++        self.frame_list = None
++        self.frame_row = None
++        self.i = 0
++
++    def get_row_elements(self, indent_num, split_string):
++        """
++        returns a list with the elements of the row
++        """
++        return self.frame_row[indent_num:].split(split_string)
++
++    def next_row(self):
++        """
++        Gets the next row of the recorder
++        """
++        self.i += 1
++        self.frame_row = self.frame_list[self.i]
++
++    def parse_recorder_info(self):
++        """
++        Parses the recorder into readable information.
++
++        Args:
++            recorder_info (str): string given by the recorder
++        """
++
++        # Divide it into frames
++        recorder_list = self.recorder_info.split("Frame")
++
++        # Get general information
++        header = recorder_list[0].split("\n")
++        sim_map = header[1][5:]
++        sim_date = header[2][6:]
++
++        annex = recorder_list[-1].split("\n")
++        sim_frames = int(annex[0][3:])
++        sim_duration = float(annex[1][10:-8])
++
++        recorder_list = recorder_list[1:-1]
++
++        simulation_info = {
++            "map": sim_map,
++            "date:": sim_date,
++            "total_frames": sim_frames,
++            "duration": sim_duration
++        }
++
++        actors_info = {}
++        frames_info = []
++
++        for frame in recorder_list:
++
++            # Divide the frame in lines
++            self.frame_list = frame.split("\n")
++
++            # Get the general frame information
++            frame_info = self.frame_list[0].split(" ")
++            frame_number = int(frame_info[1])
++            frame_time = float(frame_info[3])
++
++            try:
++                prev_frame = frames_info[frame_number - 2]
++                prev_time = prev_frame["frame"]["elapsed_time"]
++                delta_time = round(frame_time - prev_time, 6)
++            except IndexError:
++                delta_time = 0
++
++            # Variable to store all the information about the frame
++            frame_state = {
++                "frame": {
++                    "elapsed_time": frame_time,
++                    "delta_time": delta_time,
++                    "platform_time": None
++                },
++                "actors": {},
++                "events":{
++                    "scene_lights": {},
++                    "physics_control": {},
++                    "traffic_light_state_time": {},
++                    "collisions": {}
++                }
++            }
++
++            # Loop through all the other rows.
++            self.i = 0
++            self.next_row()
++
++            while self.frame_row.startswith(' Create') or self.frame_row.startswith('  '):
++
++                if self.frame_row.startswith(' Create'):
++                    elements = self.get_row_elements(1, " ")
++                    actor_id = int(elements[1][:-1])
++
++                    actor = parse_actor(elements)
++                    actors_info.update({actor_id: actor})
++                    actors_info[actor_id].update({"created": frame_number})
++                else:
++                    elements = self.get_row_elements(2, " = ")
++                    actors_info[actor_id].update({elements[0]: elements[1]})
++
++                self.next_row()
++
++            while self.frame_row.startswith(' Destroy'):
++
++                elements = self.get_row_elements(1, " ")
++
++                actor_id = int(elements[1])
++                actors_info[actor_id].update({"destroyed": frame_number})
++
++                self.next_row()
++
++            while self.frame_row.startswith(' Collision'):
++
++                elements = self.get_row_elements(1, " ")
++
++                actor_id = int(elements[4])
++                other_id = int(elements[-1])
++
++                if actor_id not in frame_state["events"]["collisions"]:
++                    frame_state["events"]["collisions"][actor_id] = [other_id]
++                else:
++                    collisions = frame_state["events"]["collisions"][actor_id]
++                    collisions.append(other_id)
++                    frame_state["events"]["collisions"].update({actor_id: collisions})
++
++                self.next_row()
++
++            while self.frame_row.startswith(' Parenting'):
++
++                elements = self.get_row_elements(1, " ")
++
++                actor_id = int(elements[1])
++                parent_id = int(elements[3])
++                actors_info[actor_id].update({"parent": parent_id})
++
++                self.next_row()
++
++            # ---------------------------------------------------------------
++            # VA LOI TUONG THICH — "Vehicle door animations"
++            #
++            # CARLA ban moi ghi them khoi nay vao file recorder, va no nam NGAY
++            # TRUOC khoi "Positions". Parser goc duyet cac khoi theo THU TU TUAN
++            # TU: gap mot dong khong khop bat ky 'if' nao thi con tro dong dung
++            # im, nen 'Positions' KHONG BAO GIO duoc doc -> moi metric deu nhan
++            # duoc 0 transform, 0 velocity.
++            #
++            # Trieu chung khi chua va: get_actor_transform() luon tra ve None du
++            # file ghi van co du lieu.
++            #
++            # Cach va: nhan dien khoi nay roi bo qua no cung cac dong con.
++            if self.frame_row.startswith(' Vehicle door animations'):
++                self.next_row()
++                while self.frame_row.startswith('  '):
++                    self.next_row()
++
++            if self.frame_row.startswith(' Positions'):
++                self.next_row()
++
++                while self.frame_row.startswith('  '):
++
++                    elements = self.get_row_elements(2, " ")
++                    actor_id = int(elements[1])
++
++                    transform = parse_transform(elements)
++                    frame_state["actors"].update({actor_id: {"transform": transform}})
++
++                    self.next_row()
++
++            if self.frame_row.startswith(' State traffic lights'):
++                self.next_row()
++
++                while self.frame_row.startswith('  '):
++
++                    elements = self.get_row_elements(2, " ")
++                    actor_id = int(elements[1])
++
++                    traffic_light = parse_traffic_light(elements)
++                    frame_state["actors"].update({actor_id: traffic_light})
++                    self.next_row()
++
++            if self.frame_row.startswith(' Vehicle animations'):
++                self.next_row()
++
++                while self.frame_row.startswith('  '):
++
++                    elements = self.get_row_elements(2, " ")
++                    actor_id = int(elements[1])
++
++                    control = parse_control(elements)
++                    frame_state["actors"][actor_id].update({"control": control})
++                    self.next_row()
++
++            if self.frame_row.startswith(' Walker animations'):
++                self.next_row()
++
++                while self.frame_row.startswith('  '):
++                    elements = self.get_row_elements(2, " ")
++                    actor_id = int(elements[1])
++
++                    frame_state["actors"][actor_id].update({"speed": elements[3]})
++                    self.next_row()
++
++            if self.frame_row.startswith(' Vehicle light animations'):
++                self.next_row()
++
++                while self.frame_row.startswith('  '):
++                    elements = self.get_row_elements(2, " ")
++                    actor_id = int(elements[1])
++
++                    lights = parse_vehicle_lights(elements)
++                    frame_state["actors"][actor_id].update({"lights": lights})
++                    self.next_row()
++
++            if self.frame_row.startswith(' Scene light changes'):
++                self.next_row()
++
++                while self.frame_row.startswith('  '):
++                    elements = self.get_row_elements(2, " ")
++                    actor_id = int(elements[1])
++
++                    scene_light = parse_scene_lights(elements)
++                    frame_state["events"]["scene_lights"].update({actor_id: scene_light})
++                    self.next_row()
++
++            if self.frame_row.startswith(' Dynamic actors'):
++                self.next_row()
++
++                while self.frame_row.startswith('  '):
++                    elements = self.get_row_elements(2, " ")
++                    actor_id = int(elements[1])
++
++                    velocity = parse_velocity(elements)
++                    frame_state["actors"][actor_id].update({"velocity": velocity})
++
++                    angular_v = parse_angular_velocity(elements)
++                    frame_state["actors"][actor_id].update({"angular_velocity": angular_v})
++
++                    if delta_time == 0:
++                        acceleration = carla.Vector3D(0, 0, 0)
++                    else:
++                        prev_velocity = frame_state["actors"][actor_id]["velocity"]
++                        acceleration = (velocity - prev_velocity) / delta_time
++
++                    frame_state["actors"][actor_id].update({"acceleration": acceleration})
++                    self.next_row()
++
++            if self.frame_row.startswith(' Actor bounding boxes'):
++                self.next_row()
++
++                while self.frame_row.startswith('  '):
++                    elements = self.get_row_elements(2, " ")
++                    actor_id = int(elements[1])
++
++                    bbox = parse_bounding_box(elements)
++                    actors_info[actor_id].update({"bounding_box": bbox})
++                    self.next_row()
++
++            if self.frame_row.startswith(' Actor trigger volumes'):
++                self.next_row()
++
++                while self.frame_row.startswith('  '):
++                    elements = self.get_row_elements(2, " ")
++                    actor_id = int(elements[1])
++
++                    trigvol = parse_bounding_box(elements)
++                    actors_info[actor_id].update({"trigger_volume": trigvol})
++                    self.next_row()
++
++            if self.frame_row.startswith(' Current platform time'):
++
++                elements = self.get_row_elements(1, " ")
++
++                platform_time = float(elements[-1])
++                frame_state["frame"]["platform_time"] = platform_time
++                self.next_row()
++
++            # VA LOI TUONG THICH — "Walkers Bones" (cung ly do nhu tren,
++            # khoi nay nam o CUOI moi frame trong ban CARLA moi).
++            if self.frame_row.startswith(' Walkers Bones'):
++                self.next_row()
++                while self.frame_row.startswith('  '):
++                    self.next_row()
++
++            if self.frame_row.startswith(' Physics Control'):
++                self.next_row()
++
++                actor_id = None
++                while self.frame_row.startswith('  '):
++
++                    elements = self.get_row_elements(2, " ")
++                    actor_id = int(elements[1])
++                    physics_control = carla.VehiclePhysicsControl()
++                    self.next_row()
++
++                    forward_gears = []
++                    wheels = []
++                    while self.frame_row.startswith('   '):
++
++                        if self.frame_row.startswith('    '):
++                            elements = self.get_row_elements(4, " ")
++                            if elements[0] == "gear":
++                                forward_gears.append(parse_gears_control(elements))
++                            elif elements[0] == "wheel":
++                                wheels.append(parse_wheels_control(elements))
++
++                        else:
++                            elements = self.get_row_elements(3, " = ")
++                            name = elements[0]
++
++                            if name == "center_of_mass":
++                                values = elements[1].split(" ")
++                                value = carla.Vector3D(
++                                    float(values[0][1:-1]),
++                                    float(values[1][:-1]),
++                                    float(values[2][:-1]),
++                                )
++                                setattr(physics_control, name, value)
++                            elif name == "torque_curve" or name == "steering_curve":
++                                values = elements[1].split(" ")
++                                value = parse_vector_list(values)
++                                setattr(physics_control, name, value)
++
++                            elif name == "use_gear_auto_box":
++                                name = "use_gear_autobox"
++                                value = elements[1] == "true"
++                                setattr(physics_control, name, value)
++
++                            elif "forward_gears" in name or "wheels" in name:
++                                pass
++
++                            else:
++                                name = name.lower()
++                                value = float(elements[1])
++                                setattr(physics_control, name, value)
++
++                        self.next_row()
++
++                    setattr(physics_control, "forward_gears", forward_gears)
++                    setattr(physics_control, "wheels", wheels)
++                    frame_state["events"]["physics_control"].update({actor_id: physics_control})
++
++            if self.frame_row.startswith(' Traffic Light time events'):
++                self.next_row()
++
++                while self.frame_row.startswith('  '):
++                    elements = self.get_row_elements(2, " ")
++                    actor_id = int(elements[1])
++
++                    state_times = parse_state_times(elements)
++                    frame_state["events"]["traffic_light_state_time"].update({actor_id: state_times})
++                    self.next_row()
++
++            frames_info.append(frame_state)
++
++        return simulation_info, actors_info, frames_info
+diff --git a/srunner/examples/VinfastCutIn.xml b/srunner/examples/VinfastCutIn.xml
+new file mode 100644
+index 0000000..7240698
+--- /dev/null
++++ b/srunner/examples/VinfastCutIn.xml
+@@ -0,0 +1,24 @@
++<?xml version="1.0"?>
++<!--
++  Cau hinh cho kich ban tu viet VinfastCutInAndSlow.
++
++  type="VinfastCutInAndSlow" phai TRUNG TEN CLASS trong
++  srunner/scenarios/vinfast_cutin_slow.py  - scenario_runner.py:167 doi chieu
++  bang ten class, khong co registry nao khac.
++
++  Toa do lay tu CutIn.xml (CutInFrom_left_Lane) vi da kiem chung chay tot tren
++  Town04 - doan duong cao toc nhieu lan, dung cho tinh huong cat dau.
++
++  LUU Y  z="-100" cua other_actor:
++  NPC duoc spawn SAU DUOI MAT DAT de nguoi lai ego khong nhin thay tu dau.
++  Den dung luc, ActorTransformSetter nhac no len (+105 m). Xem chu thich trong
++  _initialize_actors().
++-->
++<scenarios>
++    <scenario name="VinfastCutIn_1" type="VinfastCutInAndSlow" town="Town04">
++        <ego_vehicle   x="284.4" y="16.4" z="2.5"  yaw="180" model="vehicle.lincoln.mkz_2017" />
++        <other_actor   x="324.2" y="20.7" z="-100" yaw="180" model="vehicle.tesla.model3" />
++        <weather cloudiness="0" precipitation="0" precipitation_deposits="0"
++                 wind_intensity="0" sun_azimuth_angle="0" sun_altitude_angle="75" />
++    </scenario>
++</scenarios>
+diff --git a/srunner/examples/my_cutin.osc b/srunner/examples/my_cutin.osc
+new file mode 100644
+index 0000000..671dc45
+--- /dev/null
++++ b/srunner/examples/my_cutin.osc
+@@ -0,0 +1,42 @@
++import basic.osc
++
++global path: Path
++global my_map: string = "Town04"
++global min_lane: int = 2
++
++scenario dut.my_cutin:
++    
++    ego_vehicle: Model3
++    npc: Rubicon
++    event start
++    event end
++
++    do serial:
++        get_ahead: parallel(duration: [30s..31s]):
++            ego_vehicle.drive(path) with: 
++                speed([30kph..31kph])
++                lane(2, at: start) # left to right: [1..n]
++            npc.drive(path, adjust: true) with:
++                lane(left_of: ego_vehicle, at: start)
++                position([15m..20m], behind: ego_vehicle, at: start)
++                position([20m..21m], ahead_of: ego_vehicle, at: end)
++
++        change_lane: parallel(duration: [5s..6s]):
++            ego_vehicle.drive(path)
++            npc.drive(path) with:
++                lane(same_as: ego_vehicle, at: end)
++
++        slow: parallel(duration: [20s..21s]):
++            ego_vehicle.drive(path)
++            npc.drive(path) with:
++                speed([32kph..34kph])   # DA SUA: goc la [10kph..12kph] -> gay va cham
++
++scenario top:
++    path.set_map(my_map)      
++    path.path_min_driving_lanes(min_lane)
++    ego_vehicle: Model3
++    npc: Rubicon
++
++    do serial:
++        dut.my_cutin()
++
+diff --git a/srunner/metrics/examples/vinfast_cutin_metric.py b/srunner/metrics/examples/vinfast_cutin_metric.py
+new file mode 100644
+index 0000000..3b3647f
+--- /dev/null
++++ b/srunner/metrics/examples/vinfast_cutin_metric.py
+@@ -0,0 +1,164 @@
++#!/usr/bin/env python
++
++"""
++Metric tự viết — VinfastCutInMetric
++====================================
++
++MỤC ĐÍCH
++    Vẽ lại diễn biến của kịch bản cắt đầu bằng SỐ LIỆU, thay vì chỉ nhìn bằng mắt:
++        - khoảng cách giữa xe ego và xe NPC theo thời gian
++        - tốc độ của từng xe theo thời gian
++    Nhìn đồ thị là thấy rõ ba pha: NPC lao tới → cắt đầu → giảm tốc đột ngột.
++
++CƠ CHẾ QUAN TRỌNG NHẤT CỦA METRICS MODULE
++    Metric KHÔNG chạy lại mô phỏng. Nó đọc file ghi (.log) mà CARLA recorder đã
++    lưu lúc kịch bản chạy. Nhờ vậy muốn tính lại, đổi công thức, vẽ kiểu khác
++    bao nhiêu lần cũng được mà không phải diễn lại cảnh — vốn rất tốn thời gian.
++
++    Đổi lại: chỉ lấy được những gì recorder đã ghi (vị trí, vận tốc, gia tốc,
++    điều khiển, đèn...). Muốn có dữ liệu cảm biến thì phải thu lúc chạy, không
++    lấy ngược lại được từ file ghi.
++
++CÁCH CHẠY
++    Bước 1 — ghi lại kịch bản (sinh ra .log + .json):
++        python scenario_runner.py --scenario VinfastCutIn_1 --record recordings ...
++
++    Bước 2 — chạy metric (CARLA server phải đang bật):
++        python metrics_manager.py ^
++            --metrics srunner/metrics/examples/vinfast_cutin_metric.py ^
++            --log recordings/VinfastCutIn_1.log ^
++            --criteria recordings/VinfastCutIn_1.json
++"""
++
++import math
++import os
++
++import matplotlib
++# Chọn backend "Agg" khi không có màn hình để savefig vẫn chạy được.
++# Phải gọi TRƯỚC khi import pyplot, nếu không matplotlib đã chốt backend rồi.
++if not os.environ.get("DISPLAY") and os.name != "nt":
++    matplotlib.use("Agg")
++import matplotlib.pyplot as plt
++
++from srunner.metrics.examples.basic_metric import BasicMetric
++
++
++# Nơi lưu đồ thị làm bằng chứng nộp mentor.
++OUT_DIR = r"D:\Hunganh\carla-scenario\evidence\task1"
++OUT_FILE = "task1_06_metric_khoang_cach_toc_do.png"
++
++
++class VinfastCutInMetric(BasicMetric):
++    """
++    Mọi metric đều kế thừa BasicMetric và chỉ cần điền đúng một hàm:
++    _create_metric(). Lớp cha tự gọi nó trong __init__.
++    """
++
++    def _create_metric(self, town_map, log, criteria):
++        """
++        Args:
++            town_map (carla.Map)  — bản đồ, dùng khi cần Waypoint API
++            log (MetricsLog)      — cửa ngõ tra cứu file ghi
++            criteria (dict)       — tiêu chí đã chấm, đọc từ file .json
++        """
++
++        # --- 1. Tìm ID hai xe -------------------------------------------------
++        # Lưu ý tên vai khác nhau giữa hai chế độ:
++        #   --scenario       -> ego mang role_name 'hero',  NPC mang 'scenario'
++        #   --openscenario2  -> ego mang role_name 'ego_vehicle'
++        ego_id = log.get_ego_vehicle_id()
++        npc_ids = log.get_actor_ids_with_role_name("scenario")
++        if not npc_ids:
++            print("[metric] Khong tim thay xe nao co role_name='scenario'")
++            return
++        npc_id = npc_ids[0]
++
++        # --- 2. Khoảng thời gian cả hai xe cùng tồn tại ------------------------
++        # Hai xe không spawn cùng lúc và không bị huỷ cùng lúc, nên phải lấy
++        # phần giao nhau, nếu không sẽ tra vào frame mà một trong hai chưa/hết tồn tại.
++        start_ego, end_ego = log.get_actor_alive_frames(ego_id)
++        start_npc, end_npc = log.get_actor_alive_frames(npc_id)
++        start = max(start_ego, start_npc)
++        end = min(end_ego, end_npc)
++
++        times, distances, speed_ego, speed_npc = [], [], [], []
++
++        for frame in range(start, end):
++            ego_tf = log.get_actor_transform(ego_id, frame)
++            npc_tf = log.get_actor_transform(npc_id, frame)
++            if ego_tf is None or npc_tf is None:
++                continue
++
++            # BỎ QUA giai đoạn NPC còn nằm dưới mặt đất.
++            # Kịch bản spawn NPC ở z = -100 rồi mới nhấc lên (xem vinfast_cutin_slow.py).
++            # Không lọc thì đồ thị có một đoạn khoảng cách ~100 m vô nghĩa ở đầu.
++            if npc_tf.location.z < -10:
++                continue
++
++            d = ego_tf.location - npc_tf.location
++            distances.append(math.sqrt(d.x * d.x + d.y * d.y + d.z * d.z))
++
++            # get_elapsed_time trả về giây mô phỏng — dễ đọc hơn số thứ tự frame.
++            times.append(log.get_elapsed_time(frame))
++
++            # Vận tốc là vector 3 chiều, đổi sang km/h cho dễ đối chiếu với HUD.
++            v_ego = log.get_actor_velocity(ego_id, frame)
++            v_npc = log.get_actor_velocity(npc_id, frame)
++            speed_ego.append(3.6 * math.sqrt(v_ego.x ** 2 + v_ego.y ** 2 + v_ego.z ** 2))
++            speed_npc.append(3.6 * math.sqrt(v_npc.x ** 2 + v_npc.y ** 2 + v_npc.z ** 2))
++
++        if not times:
++            print("[metric] Khong co frame nao dung dieu kien")
++            return
++
++        # --- 3. Đối chiếu với tiêu chí đã chấm --------------------------------
++        # criteria đọc từ file .json mà scenario_runner ghi ra. Nhờ vậy đồ thị và
++        # bảng kết quả nói cùng một câu chuyện.
++        n_collisions = None
++        if criteria and "CollisionTest" in criteria:
++            n_collisions = criteria["CollisionTest"].get("actual_value")
++
++        min_dist = min(distances)
++        print("\n================ KET QUA METRIC ================")
++        print(" So frame phan tich     : %d" % len(times))
++        print(" Thoi gian mo phong     : %.1f s" % (times[-1] - times[0]))
++        print(" Khoang cach GAN NHAT   : %.2f m  (giay thu %.1f)"
++              % (min_dist, times[distances.index(min_dist)]))
++        print(" Toc do ego  min/max    : %.1f / %.1f km/h" % (min(speed_ego), max(speed_ego)))
++        print(" Toc do NPC  min/max    : %.1f / %.1f km/h" % (min(speed_npc), max(speed_npc)))
++        if n_collisions is not None:
++            print(" CollisionTest ghi nhan : %s va cham" % n_collisions)
++        print("================================================\n")
++
++        # --- 4. Vẽ đồ thị hai tầng dùng CHUNG trục thời gian -------------------
++        # Dùng chung trục x (sharex) để đọc theo cột: nhìn thẳng từ đáy khoảng cách
++        # lên là thấy ngay lúc đó tốc độ hai xe bao nhiêu.
++        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(11, 7), sharex=True)
++
++        ax1.plot(times, distances, linewidth=2, color="#2a78d6")
++        ax1.axhline(y=min_dist, linestyle="--", linewidth=1, color="#d03b3b")
++        ax1.annotate("gan nhat %.1f m" % min_dist,
++                     xy=(times[distances.index(min_dist)], min_dist),
++                     xytext=(8, 10), textcoords="offset points", color="#d03b3b")
++        ax1.set_ylabel("Khoang cach [m]")
++        ax1.set_title("Kich ban VinfastCutIn — khoang cach va toc do theo thoi gian")
++        ax1.grid(alpha=.3)
++
++        ax2.plot(times, speed_ego, linewidth=2, label="ego (Lincoln Mkz)", color="#2a78d6")
++        ax2.plot(times, speed_npc, linewidth=2, label="NPC (Tesla Model 3)", color="#eb6834")
++        ax2.set_ylabel("Toc do [km/h]")
++        ax2.set_xlabel("Thoi gian mo phong [s]")
++        ax2.legend()
++        ax2.grid(alpha=.3)
++
++        fig.tight_layout()
++
++        os.makedirs(OUT_DIR, exist_ok=True)
++        out_path = os.path.join(OUT_DIR, OUT_FILE)
++        fig.savefig(out_path, dpi=130)
++        print("[metric] Da luu do thi: %s" % out_path)
++
++        try:
++            plt.show()
++        except Exception:      # không có màn hình thì thôi, ảnh đã lưu rồi
++            pass
+diff --git a/srunner/scenarios/vinfast_cutin_slow.py b/srunner/scenarios/vinfast_cutin_slow.py
+new file mode 100644
+index 0000000..65bbb80
+--- /dev/null
++++ b/srunner/scenarios/vinfast_cutin_slow.py
+@@ -0,0 +1,221 @@
++#!/usr/bin/env python
++
++"""
++Kịch bản tự viết — VinfastCutInAndSlow
++=======================================
++
++MỤC ĐÍCH
++    Tái hiện bằng Python đúng tình huống mà file OSC2 `cut_in_and_slow_range.osc` mô tả:
++    xe NPC bám theo, vượt lên, CẮT ĐẦU xe ego, RỒI GIẢM TỐC ĐỘT NGỘT.
++
++VÌ SAO VIẾT LẠI THAY VÌ DÙNG `cut_in.py` CÓ SẴN
++    `cut_in.py` gốc dừng ở bước cắt đầu rồi chạy tiếp 200 m — KHÔNG có pha giảm tốc.
++    Mà chính pha giảm tốc mới là thứ tạo ra nguy hiểm: chênh lệch tốc độ tiếp cận.
++    Thêm pha đó vào giúp so sánh sòng phẳng hai cách mô tả cùng một kịch bản:
++
++        OSC2  : khai báo ý định, bộ giải tự lo    -> ego bị kịch bản lái, luôn đâm
++        Python: dựng tay từng nút của cây hành vi -> ego do người/autopilot lái
++
++CÁCH SCENARIO RUNNER TÌM THẤY FILE NÀY
++    Không cần đăng ký ở đâu cả. `scenario_runner.py:167` quét toàn bộ
++    `srunner/scenarios/*.py`, import từng module rồi tìm class có tên TRÙNG với
++    thuộc tính `type=` trong file XML cấu hình.
++    -> Chỉ cần thả file vào đây + đặt type="VinfastCutInAndSlow" trong XML.
++
++CHẠY
++    python scenario_runner.py --scenario VinfastCutIn_1 --reloadWorld --timeout 600 --output
++    python manual_control.py -a --rolename hero        (cửa sổ thứ hai, autopilot lái ego)
++"""
++
++import py_trees
++import carla
++
++from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
++from srunner.scenariomanager.scenarioatomics.atomic_behaviors import (
++    ActorTransformSetter,
++    AccelerateToCatchUp,
++    LaneChange,
++    WaypointFollower,
++)
++from srunner.scenariomanager.scenarioatomics.atomic_criteria import (
++    CollisionTest,
++    DrivenDistanceTest,
++)
++from srunner.scenariomanager.scenarioatomics.atomic_trigger_conditions import (
++    DriveDistance,
++    InTriggerDistanceToVehicle,
++)
++from srunner.scenarios.basic_scenario import BasicScenario
++
++
++class VinfastCutInAndSlow(BasicScenario):
++    """
++    NPC cắt đầu xe ego rồi giảm tốc đột ngột.
++
++    Mọi kịch bản đều kế thừa BasicScenario và điền hai phương thức:
++        _create_behavior()      -> cây hành vi (NPC làm gì)
++        _create_test_criteria() -> tiêu chí chấm điểm (thế nào là đạt)
++    """
++
++    timeout = 600
++
++    # --- Tham số của kịch bản, gom lên đầu để dễ chỉnh khi thí nghiệm ----------
++    _npc_cruise_speed = 40      # km/h, tốc độ NPC lúc bám theo ego
++    _npc_slow_speed = 10        # km/h, tốc độ NPC SAU khi cắt đầu  <- nguồn nguy hiểm
++    _trigger_distance = 30      # m, NPC tới gần ego bằng này thì bắt đầu tăng tốc vượt
++    _slow_distance = 60         # m, quãng đường NPC bò chậm trước khi kịch bản kết thúc
++    _end_distance = 150         # m, ego đi được bằng này thì kết thúc kịch bản
++
++    def __init__(self, world, ego_vehicles, config, randomize=False,
++                 debug_mode=False, criteria_enable=True, timeout=600):
++        self.timeout = timeout
++        self._map = CarlaDataProvider.get_map()
++
++        # trigger_points[0] là điểm spawn của xe ego, lấy từ file XML.
++        # Dùng waypoint ở đây để biết kịch bản diễn ra trên đoạn đường nào.
++        self._reference_waypoint = self._map.get_waypoint(config.trigger_points[0].location)
++
++        self._transform_visible = None
++
++        # Gọi hàm khởi tạo của lớp cha. Chính nó sẽ gọi _initialize_actors(),
++        # _create_behavior() và _create_test_criteria() theo đúng thứ tự.
++        super(VinfastCutInAndSlow, self).__init__(
++            "VinfastCutInAndSlow",
++            ego_vehicles,
++            config,
++            world,
++            debug_mode,
++            criteria_enable=criteria_enable,
++        )
++
++    # ------------------------------------------------------------------------
++    def _initialize_actors(self, config):
++        """
++        Spawn các diễn viên không phải ego, đọc từ thẻ <other_actor> trong XML.
++
++        MẸO QUAN TRỌNG — vì sao XML để z = -100:
++            Nếu spawn NPC ngay trên đường, người lái ego sẽ nhìn thấy nó đứng chờ
++            từ đầu, mất tính bất ngờ. Nên XML đặt NPC nằm SÂU DƯỚI MẶT ĐẤT (z=-100),
++            tắt vật lý, rồi tới đúng lúc mới nhấc lên bằng ActorTransformSetter.
++            Cộng 105 m là để bù lại -100 và nhô lên trên mặt đường một chút.
++        """
++        for actor in config.other_actors:
++            vehicle = CarlaDataProvider.request_new_actor(actor.model, actor.transform)
++            self.other_actors.append(vehicle)
++            # Tắt vật lý trong lúc còn nằm dưới đất, tránh rơi tự do vô nghĩa.
++            vehicle.set_simulate_physics(enabled=False)
++
++        npc_transform = self.other_actors[0].get_transform()
++        self._transform_visible = carla.Transform(
++            carla.Location(npc_transform.location.x,
++                           npc_transform.location.y,
++                           npc_transform.location.z + 105),
++            npc_transform.rotation,
++        )
++
++    # ------------------------------------------------------------------------
++    def _create_behavior(self):
++        """
++        Cây hành vi py_trees. Đọc từ trên xuống chính là kịch bản diễn ra theo thứ tự.
++
++        NHẮC LẠI HAI LOẠI NÚT GHÉP:
++            Sequence  — chạy con thứ nhất xong mới tới con thứ hai
++            Parallel  — chạy đồng thời; ở đây dùng SUCCESS_ON_ONE nghĩa là
++                        CHỈ CẦN MỘT con báo SUCCESS là cả nhánh kết thúc.
++
++        Vì sao cần SUCCESS_ON_ONE: WaypointFollower chạy MÃI MÃI, không bao giờ tự
++        kết thúc. Muốn nó dừng thì phải ghép song song với một điều kiện dừng
++        (khoảng cách, quãng đường...). Đây là khuôn mẫu lặp đi lặp lại trong mọi
++        kịch bản của Scenario Runner.
++        """
++        root = py_trees.composites.Sequence("VinfastCutInAndSlow")
++
++        # --- Pha 0: nhấc NPC từ dưới đất lên đường, bật lại vật lý --------------
++        root.add_child(
++            ActorTransformSetter(self.other_actors[0], self._transform_visible)
++        )
++
++        # --- Pha 1: NPC chạy ở làn bên cho tới khi tới gần ego ------------------
++        approach = py_trees.composites.Parallel(
++            "NPC bam theo ego",
++            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE,
++        )
++        approach.add_child(WaypointFollower(self.other_actors[0], self._npc_cruise_speed))
++        approach.add_child(
++            InTriggerDistanceToVehicle(
++                self.other_actors[0], self.ego_vehicles[0], self._trigger_distance
++            )
++        )
++        root.add_child(approach)
++
++        # --- Pha 2: tăng tốc vượt lên ngang ego --------------------------------
++        root.add_child(
++            AccelerateToCatchUp(
++                self.other_actors[0],
++                self.ego_vehicles[0],
++                throttle_value=1,
++                delta_velocity=10,
++                trigger_distance=5,
++                max_distance=500,
++            )
++        )
++
++        # --- Pha 3: cắt đầu, chuyển sang làn của ego ---------------------------
++        # XML đặt NPC ở làn BÊN TRÁI nên cắt sang phải mới vào làn ego.
++        root.add_child(
++            LaneChange(
++                self.other_actors[0],
++                speed=None,              # None = giữ nguyên tốc độ đang có
++                direction='right',
++                distance_same_lane=5,
++                distance_other_lane=100,
++            )
++        )
++
++        # --- Pha 4: GIẢM TỐC ĐỘT NGỘT  <- đây là phần cut_in.py gốc KHÔNG có ----
++        # Đúng pha `slow` của bản OSC2. Chênh lệch tốc độ tiếp cận sinh ra ở đây.
++        brake_check = py_trees.composites.Parallel(
++            "NPC giam toc dot ngot",
++            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE,
++        )
++        brake_check.add_child(WaypointFollower(self.other_actors[0], self._npc_slow_speed))
++        brake_check.add_child(DriveDistance(self.other_actors[0], self._slow_distance))
++        root.add_child(brake_check)
++
++        # --- Pha 5: điều kiện kết thúc -----------------------------------------
++        # Không có nút này thì kịch bản chạy tới khi hết timeout.
++        root.add_child(DriveDistance(self.ego_vehicles[0], self._end_distance))
++
++        return root
++
++    # ------------------------------------------------------------------------
++    def _create_test_criteria(self):
++        """
++        Danh sách tiêu chí chấm điểm. Scenario Runner tự ghép chúng thành một
++        nhánh py_trees song song chạy nền suốt kịch bản.
++
++        optional=False -> trượt tiêu chí này là cả kịch bản FAILURE
++        optional=True  -> chỉ ghi nhận số liệu, không làm hỏng kết quả chung
++        """
++        criteria = []
++
++        # Tiêu chí chính: ego có đâm vào gì không. Đây là thứ phân định đạt/không đạt.
++        criteria.append(CollisionTest(self.ego_vehicles[0]))
++
++        # Tiêu chí phụ: ego có thực sự chạy được quãng đường mong đợi không.
++        # Để optional=True vì nếu ego phanh gấp để tránh đâm thì nó đi ngắn hơn —
++        # đó là hành vi ĐÚNG, không nên bị tính là trượt.
++        criteria.append(
++            DrivenDistanceTest(
++                self.ego_vehicles[0],
++                distance=self._end_distance,
++                optional=True,
++            )
++        )
++
++        return criteria
++
++    # ------------------------------------------------------------------------
++    def __del__(self):
++        """Dọn dẹp sau khi kịch bản kết thúc."""
++        self.remove_all_actors()

@@ -1,0 +1,20 @@
+URL OVERPASS CHO DIGITAL TWIN TOOL
+===================================
+Dan chuoi duoi day vao o "OSM URL" cua widget UW_OnRoadMainWidget.
+
+Vung VinUni 800 x 800 m  (tam: lat 20.98931, lon 105.94589)
+---------------------------------------------------------------
+https://overpass-api.de/api/map?bbox=105.9420,20.9857,105.9497,20.9929
+
+
+Vung VinUni 2 x 2 km  (rong hon, lau hon)
+---------------------------------------------------------------
+https://overpass-api.de/api/map?bbox=105.9363,20.9803,105.9555,20.9983
+
+
+GHI CHU
+  - KHONG dung openstreetmap.org: ten mien do bi chan DNS tren may nay.
+    Overpass API tra ve dung dinh dang .osm XML nen thay the duoc.
+  - Dinh dang bbox = <trai>,<duoi>,<phai>,<tren> = minlon,minlat,maxlon,maxlat
+  - O "Select OSM Database" la danh cho file .osm tai san - CHI CHAY TREN LINUX.
+    Tren Windows bat buoc dung o "OSM URL".

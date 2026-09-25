@@ -1,0 +1,27 @@
+# pip freeze cua D:\Hunganh\carla-scenario\.venv-sr (Python 3.11.9), 25/09/2026
+antlr4-python3-runtime==4.10
+carla==0.9.16
+contourpy==1.3.2
+cycler==0.12.1
+elementpath==1.3.3
+ephem==4.2.1
+fonttools==4.65.0
+graphviz==0.21
+kiwisolver==1.5.1
+matplotlib==3.10.9
+networkx==3.4.2
+numpy==1.24.4
+opencv-python==4.7.0.72
+packaging==26.3
+pillow==12.3.0
+psutil==7.2.2
+py-trees==0.8.3
+pydot==4.0.1
+pygame==2.6.1
+pyparsing==3.3.3
+python-dateutil==2.9.0.post0
+shapely==2.1.1
+simple_watchdog_timer==0.1.1
+six==1.17.0
+tabulate==0.10.0
+xmlschema==1.0.18
